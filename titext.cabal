@@ -1,0 +1,36 @@
+Name:                titext
+Version:             0.1
+Synopsis:            reading/writing TI_TEXT files
+Description:         Library for reading and writing files to TI_TEXT format, i.e
+                     @xxxx
+                     yy yy yy yy yy
+                     yy yy yy yy yy
+                     .. 
+
+                     where xxxx - is hexadecimal address of block and yy is 
+                     hecadecimal bytes
+License:             BSD3
+License-file:        LICENSE
+Author:              Alexander Vershilov
+Maintainer:          alexander.vershilov@gmail.com
+-- Copyright:           
+Category:            Data
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+
+Library
+  -- Modules exported by the library.
+  Exposed-modules:
+     Data.TiText
+  
+  -- Packages needed in order to build this package.
+  Build-depends:       base
+                       , bytestring == 0.9.*
+  
+  -- Modules not exported by this package.
+  -- Other-modules:       
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  -- Build-tools:         
+  
