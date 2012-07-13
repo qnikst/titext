@@ -1,10 +1,10 @@
 -- | Reading TI_TEXT files
 module Data.TiText 
-  ( TiText 
-  , readTiText
+  ( readTiText
   , splitMerge
   , splitBlocks
   , mergeBlocks
+  , module Data.TiText.Internal
   ) where
 
 -- TODO:
@@ -14,21 +14,16 @@ module Data.TiText
 --        mark string as deprecated
 --        create bytestring interfaces  
 
-import           Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import Data.Char
 import Data.List
 import Data.Word
 import Data.Int
-import Control.Arrow (second)
 import Numeric
 import Data.Binary.Put
 import Data.Binary.Builder
 
-type Block  = (Int64, ByteString)                 -- ^ Starting address of block and block data
--- type SBlock = (Int, Builder) 
-
-type TiText = [Block] 
+import Data.TiText.Internal
 
 {- |
   Load TiText file 
@@ -46,7 +41,6 @@ getBlocks :: String -> TiText
 getBlocks = go . words
   where 
     -- go empty' items
-    empty' = (undefined, empty)
     go :: [String] -> TiText
     go []      = []
     go ("q":_) = [] -- end of the file
@@ -79,7 +73,7 @@ getBlocks = go . words
 splitBlocks :: Int64 -> TiText -> TiText
 splitBlocks size = foldl (splitter size) [] 
 
-splitter :: Int64 -> TiText -> Block -> TiText
+splitter :: Int64 -> TiText -> TiBlock -> TiText
 splitter size acc (s,b) = acc ++ zip [ s, size+s..] (splitBy size b)
   where
     splitBy :: Int64 -> B.ByteString -> [B.ByteString]
@@ -87,11 +81,11 @@ splitter size acc (s,b) = acc ++ zip [ s, size+s..] (splitBy size b)
     splitBy i xs = let (x, y) = B.splitAt i xs
                     in (x:splitBy i y)
 
-mergeBlocks :: Word8 -> TiText -> Block
+mergeBlocks :: Word8 -> TiText -> TiBlock
 mergeBlocks d b = let sb = sortBy ( \(x,_) (y,_) -> compare x y) b
   in foldl (merger d) (head sb) (tail sb)
 
-merger :: Word8 -> Block -> Block -> Block
+merger :: Word8 -> TiBlock -> TiBlock -> TiBlock
 merger def (aA,dA) (aB,dB) = (aA, dA `B.append` B.replicate diff def `B.append` dB)
   where d = aB-aA
         diff = d - B.length dA
