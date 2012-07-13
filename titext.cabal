@@ -28,6 +28,7 @@ Library
   Build-depends:       base
                        , bytestring == 0.9.*
                        , binary == 0.5.*
+  Ghc-Options:         -Wall
   
   -- Modules not exported by this package.
   -- Other-modules:       
