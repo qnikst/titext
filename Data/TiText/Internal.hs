@@ -15,7 +15,6 @@ import Data.ByteString.Lazy (ByteString)
 type TiText = [ TiBlock ] 
 
 -- | Block of TI_TEXT Data
-type TiBlock = ( Int64                -- ^ starting address
-               , ByteString           -- ^ inner data
-               )
+-- it contains from starting address and block data
+type TiBlock = ( Int64, ByteString )
 

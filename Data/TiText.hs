@@ -57,18 +57,6 @@ getBlocks = go . words
                    in go' (b `append` singleton w) xs
     readAddr x | all isHexDigit x = fst . head . readHex $ x
                | otherwise        = error "unexpected symbol"
-{-    getBlocks' :: [SBlock] -> SBlock -> [String] -> [SBlock]
-    getBlocks' acc b []      = acc `snoc` b 
-    getBlocks' acc b ("q":_) = acc `snoc` b
-    getBlocks' acc b ("Q":_) = acc `snoc` b
-    getBlocks' acc b (('@':x):xs) | all isHexDigit x = 
-                  getBlocks' (revBlock b:acc) ( fst . head . readHex $ x, []) xs
-    getBlocks' acc (s1,b) (x:xs) | all isHexDigit x = 
-                  getBlocks' acc (s1, ( ( fst . head . readHex $ x):b )) xs
-    getBlocks' _ _ _ = error "unexpected symbol"
-
-    revBlock :: (a,[b]) -> (a, [b])
-    revBlock = second reverse  -}
 
 splitBlocks :: Int64 -> TiText -> TiText
 splitBlocks size = foldl (splitter size) [] 
