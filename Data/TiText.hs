@@ -2,23 +2,31 @@
 module Data.TiText 
   ( TiText 
   , readTiText
-  , split
-  , merge
   , splitMerge
   , splitBlocks
   , mergeBlocks
   ) where
 
-import           Data.ByteString (ByteString)
-import qualified Data.ByteString as B
+-- TODO:
+--        move types to internal
+--        create lazy interface
+--        create text interface
+--        mark string as deprecated
+--        create bytestring interfaces  
+
+import           Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B
 import Data.Char
 import Data.List
 import Data.Word
+import Data.Int
 import Control.Arrow (second)
 import Numeric
+import Data.Binary.Put
+import Data.Binary.Builder
 
-type Block  = (Int, ByteString)                 -- ^ Starting address of block and block data
-type SBlock = (Int, [Word8]) 
+type Block  = (Int64, ByteString)                 -- ^ Starting address of block and block data
+-- type SBlock = (Int, Builder) 
 
 type TiText = [Block] 
 
@@ -29,30 +37,36 @@ type TiText = [Block]
   If parse error occur error will be thrown
  -}
 readTiText :: FilePath -> IO TiText
-readTiText f = fmap parseTiText (readFile f)
+readTiText f = fmap getBlocks (readFile f)
 
-parseTiText :: String -> TiText
-parseTiText = getBlocks
-
-split :: Int -> TiText -> TiText
-split = splitBlocks 
-
-merge :: Word8 -> TiText -> TiText
-merge w t = [ mergeBlocks w t]
-
-splitMerge :: Word8 -> Int -> TiText -> TiText
-splitMerge w i t = split i (merge w t)
-
-
-
+splitMerge :: Word8 -> Int64 -> TiText -> TiText
+splitMerge w i t = splitBlocks i [mergeBlocks w t]
 
 getBlocks :: String -> TiText
-getBlocks s = map (second B.pack) $ tail $ reverse $ getBlocks' [] (0,[]) (words s)
+getBlocks = go . words
   where 
-    getBlocks' :: [SBlock] -> SBlock -> [String] -> [SBlock]
-    getBlocks' acc b []      = revBlock b:acc
-    getBlocks' acc b ("q":_) = revBlock b:acc
-    getBlocks' acc b ("Q":_) = revBlock b:acc
+    -- go empty' items
+    empty' = (undefined, empty)
+    go :: [String] -> TiText
+    go []      = []
+    go ("q":_) = [] -- end of the file
+    go ("Q":_) = [] -- end of the file
+    go (('@':a):xs) = 
+      let (b,r) = go' empty xs -- start of the new block
+      in  (readAddr a, runPut $ putBuilder b) : go r
+    go' :: Builder -> [String] -> (Builder, [String])
+    go' b [] =  (b,[])
+    go' b ("q":_) = (b,[])
+    go' b ("Q":_) = (b,[])
+    go' b xs@(('@':_):_) = (b,xs)
+    go' b (x:xs) = let w = fst . head . readHex $ x
+                   in go' (b `append` singleton w) xs
+    readAddr x | all isHexDigit x = fst . head . readHex $ x
+               | otherwise        = error "unexpected symbol"
+{-    getBlocks' :: [SBlock] -> SBlock -> [String] -> [SBlock]
+    getBlocks' acc b []      = acc `snoc` b 
+    getBlocks' acc b ("q":_) = acc `snoc` b
+    getBlocks' acc b ("Q":_) = acc `snoc` b
     getBlocks' acc b (('@':x):xs) | all isHexDigit x = 
                   getBlocks' (revBlock b:acc) ( fst . head . readHex $ x, []) xs
     getBlocks' acc (s1,b) (x:xs) | all isHexDigit x = 
@@ -60,15 +74,15 @@ getBlocks s = map (second B.pack) $ tail $ reverse $ getBlocks' [] (0,[]) (words
     getBlocks' _ _ _ = error "unexpected symbol"
 
     revBlock :: (a,[b]) -> (a, [b])
-    revBlock = second reverse  
+    revBlock = second reverse  -}
 
-splitBlocks :: Int -> TiText -> TiText
+splitBlocks :: Int64 -> TiText -> TiText
 splitBlocks size = foldl (splitter size) [] 
 
-splitter :: Int -> TiText -> Block -> TiText
+splitter :: Int64 -> TiText -> Block -> TiText
 splitter size acc (s,b) = acc ++ zip [ s, size+s..] (splitBy size b)
   where
-    splitBy :: Int -> B.ByteString -> [B.ByteString]
+    splitBy :: Int64 -> B.ByteString -> [B.ByteString]
     splitBy _ xs | xs==B.empty = []
     splitBy i xs = let (x, y) = B.splitAt i xs
                     in (x:splitBy i y)

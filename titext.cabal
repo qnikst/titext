@@ -1,5 +1,5 @@
 Name:                titext
-Version:             0.1
+Version:             0.2
 Synopsis:            reading/writing TI_TEXT files
 Description:         Library for reading and writing files to TI_TEXT format, i.e
                      @xxxx
@@ -27,6 +27,7 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:       base
                        , bytestring == 0.9.*
+                       , binary == 0.5.*
   
   -- Modules not exported by this package.
   -- Other-modules:       
