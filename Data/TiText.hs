@@ -48,7 +48,7 @@ tiBlockParser = do
   return (addr,B.toByteString dat)
   where
     bpack :: Word8 -> B.Builder -> B.Builder
-    bpack = flip B.append . B.singleton
+    bpack = B.append . B.singleton
 
 -- | parse all TI_TEXT blocks
 tiTextParser :: Parser TiText
@@ -62,9 +62,9 @@ makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length b,(s,d))) 0 $ splitBy i 
 tiTextSerialization :: TiText -> Text
 tiTextSerialization = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
   where
-    toBuilder (a,d) = al `mappend` (TB.hexadecimal a `mappend` dataToText d)
+    toBuilder (a,d) = al `mappend` (TB.hexadecimal a `mappend` (el `mappend` dataToText d))
     strToText       = S.foldr toB el
-    dataToText d    = foldr1 mappend mempty $ map strToText $ splitBy 16 d
+    dataToText d    = foldr mappend mempty $ map strToText $ splitBy 16 d
     toB w b = TB.hexadecimal w `mappend` (sl `mappend` b)
     al = TB.singleton '@'
     el = TB.singleton '\n'
