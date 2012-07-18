@@ -1,80 +1,91 @@
--- | Reading TI_TEXT files
-module Data.TiText 
-  ( readTiText
-  , splitMerge
-  , splitBlocks
-  , mergeBlocks
-  , module Data.TiText.Internal
+{-# LANGUAGE OverloadedStrings #-}
+-- | Parser and builder for a TI_TEXT data
+-- parser reads a TEXT stream and output TI_TEXT data
+-- As TI_TEXT file doesn't have end parser produces partial result
+-- and should be forced in order to get DONE:
+--
+-- > feed (parse parser data) Data.Text.empty
+--
+-- To use with stream libraries such as conduit or iteratee 
+-- tiBlock can be used.
+--
+-- TODO: add support for optional end mark Q
+module Data.TiText
+  ( -- * Parsers
+    tiTextParser
+  , tiBlockParser
+    -- * Data builder
+  , tiTextBuilderSimple
+  , makeTiText
+    -- * Serializer
+  , tiTextSerialization
   ) where
 
--- TODO:
---        move types to internal
---        create lazy interface
---        create text interface
---        mark string as deprecated
---        create bytestring interfaces  
+import           Control.Applicative
+import           Data.Attoparsec.Text
+import           Data.ByteString        (ByteString)
+import           Data.Monoid
+import           Data.Text.Lazy (Text)
+import qualified Data.ByteString as S
+import qualified Data.List as L
+import qualified Data.Serialize.Builder as B
+import qualified Data.Text.Lazy.Builder as TB
+import qualified Data.Text.Lazy.Builder.Int as TB
+import           Data.Word
+import           Data.TiText.Types
 
-import qualified Data.ByteString.Lazy as B
-import Data.Char
-import Data.List
-import Data.Word
-import Data.Int
-import Numeric
-import Data.Binary.Put
-import Data.Binary.Builder
+-- | read byte
+byte :: Parser Word8
+byte = skipSpace >> hexadecimal <?> "byte"
 
-import Data.TiText.Internal
-
-{- |
-  Load TiText file 
-  FilePath - path to file
-
-  If parse error occur error will be thrown
- -}
-readTiText :: FilePath -> IO TiText
-readTiText f = fmap getBlocks (readFile f)
-
-splitMerge :: Word8 -> Int64 -> TiText -> TiText
-splitMerge w i t = splitBlocks i [mergeBlocks w t]
-
-getBlocks :: String -> TiText
-getBlocks = go . words
-  where 
-    -- go empty' items
-    go :: [String] -> TiText
-    go []      = []
-    go ("q":_) = [] -- end of the file
-    go ("Q":_) = [] -- end of the file
-    go (('@':a):xs) = 
-      let (b,r) = go' empty xs -- start of the new block
-      in  (readAddr a, runPut $ putBuilder b) : go r
-    go' :: Builder -> [String] -> (Builder, [String])
-    go' b [] =  (b,[])
-    go' b ("q":_) = (b,[])
-    go' b ("Q":_) = (b,[])
-    go' b xs@(('@':_):_) = (b,xs)
-    go' b (x:xs) = let w = fst . head . readHex $ x
-                   in go' (b `append` singleton w) xs
-    readAddr x | all isHexDigit x = fst . head . readHex $ x
-               | otherwise        = error "unexpected symbol"
-
-splitBlocks :: Int64 -> TiText -> TiText
-splitBlocks size = foldl (splitter size) [] 
-
-splitter :: Int64 -> TiText -> TiBlock -> TiText
-splitter size acc (s,b) = acc ++ zip [ s, size+s..] (splitBy size b)
+-- | read TI_TEXT block
+tiBlockParser :: Parser TiBlock
+tiBlockParser = do
+  skipWhile (/= '@')
+  _ <- char '@'
+  addr <- hexadecimal
+  dat  <- foldrMany bpack B.empty byte
+  return (addr,B.toByteString dat)
   where
-    splitBy :: Int64 -> B.ByteString -> [B.ByteString]
-    splitBy _ xs | xs==B.empty = []
-    splitBy i xs = let (x, y) = B.splitAt i xs
-                    in (x:splitBy i y)
+    bpack :: Word8 -> B.Builder -> B.Builder
+    bpack = flip B.append . B.singleton
 
-mergeBlocks :: Word8 -> TiText -> TiBlock
-mergeBlocks d b = let sb = sortBy ( \(x,_) (y,_) -> compare x y) b
-  in foldl (merger d) (head sb) (tail sb)
+-- | parse all TI_TEXT blocks
+tiTextParser :: Parser TiText
+tiTextParser = skipWhile (/= '@') >> many1 tiBlockParser
 
-merger :: Word8 -> TiBlock -> TiBlock -> TiBlock
-merger def (aA,dA) (aB,dB) = (aA, dA `B.append` B.replicate diff def `B.append` dB)
-  where d = aB-aA
-        diff = d - B.length dA
+-- | create TiText from a data
+makeTiText :: Int -> ByteString -> TiText
+makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length b,(s,d))) 0 $ splitBy i b
+
+-- | Serialize TI_TEXT internal representation to Text
+tiTextSerialization :: TiText -> Text
+tiTextSerialization = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
+  where
+    toBuilder (a,d) = al `mappend` (TB.hexadecimal a `mappend` dataToText d)
+    strToText       = S.foldr toB el
+    dataToText d    = foldr1 mappend mempty $ map strToText $ splitBy 16 d
+    toB w b = TB.hexadecimal w `mappend` (sl `mappend` b)
+    al = TB.singleton '@'
+    el = TB.singleton '\n'
+    sl = TB.singleton ' '
+
+
+tiTextBuilderSimple :: Word8 -> TiText -> ByteString
+tiTextBuilderSimple b = B.toByteString . foldr (flip B.append . B.fromByteString) B.empty . fix 0
+  where 
+    fix :: Int -> [TiBlock] -> [ByteString]
+    fix _ [] = []
+    fix a x@((a',d):xs) | a < a'    = let d' = S.replicate (a'-a) b in d':fix a' x
+                        | a > a'    = let d' = S.drop (a'-a) d in d':fix (a+S.length d') xs
+                        | otherwise = d:fix (a'+S.length d) xs
+
+foldrMany :: (a -> b -> b) -> b -> (Parser a) -> Parser b
+foldrMany f x p = foldr f x <$> (many p)
+
+splitBy :: Int -> ByteString -> [ByteString]
+splitBy i = go
+  where
+      go b | S.null b = []
+           | otherwise = let (l,r) = S.splitAt i b in l:go r
 

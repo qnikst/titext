@@ -1,14 +1,20 @@
 Name:                titext
-Version:             0.2
+Version:             0.3
 Synopsis:            reading/writing TI_TEXT files
 Description:         Library for reading and writing files to TI_TEXT format, i.e
+                     
+                     Formal format specification, this is a file consisting of blocks
+
                      @xxxx
                      yy yy yy yy yy
                      yy yy yy yy yy
                      .. 
 
                      where xxxx - is hexadecimal address of block and yy is 
-                     hecadecimal bytes
+                     hecadecimal bytes list of bytes.
+
+                     Library provides lazy and strict interface for reading files
+
 License:             BSD3
 License-file:        LICENSE
 Author:              Alexander Vershilov
@@ -27,7 +33,11 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:       base
                        , bytestring == 0.9.*
-                       , binary == 0.5.*
+                       , cereal == 0.3.*
+                       , system-fileio == 0.3.*
+                       , system-filepath == 0.4.*
+                       , text == 0.11.*
+                       , attoparsec == 0.10.2.*
   Ghc-Options:         -Wall
   
   -- Modules not exported by this package.
