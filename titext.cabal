@@ -1,5 +1,5 @@
 Name:                titext
-Version:             0.3
+Version:             0.3.1
 Synopsis:            reading/writing TI_TEXT files
 Description:         Library for reading and writing files to TI_TEXT format, i.e
                      
@@ -50,5 +50,4 @@ test-suite test
                       , titext
                       , HUnit
                       , text
-
 

@@ -13,14 +13,25 @@ import Data.TiText
 main = defaultMain tests
 
 tests = [ testGroup "tiBlockParser"
-            [ testProperty "bytestring -> titext -> bytestring" prop_readSerialize ]
+            [ testProperty "bytestring -> titext -> bytestring" prop_readSerialize 
+            ]
         , testGroup "tiTextParser" 
             [ testProperty "bytestring -> titext -> text -> titext -> bytestring" prop_readSerialize2 ]
+        , testGroup "makeTiText"
+            [ testProperty "num blocks" prop_makeTiTextNumBlocks ]
+        , testGroup "tiTextSerialize"
+            [] 
+        , testGroup "tiTextBuilderSimple"
+            [] -- overlap, gaps
         ]
 
 instance Arbitrary ByteString where
     arbitrary = S.pack `fmap` arbitrary
---    coarbitrary = coarbitrary . S.unpack
+
+prop_makeTiTextNumBlocks b = Prelude.length (makeTiText 16 b) == lb `div` 16 + res
+  where
+    lb = S.length b
+    res = if lb `mod` 16 > 0 then 1 else 0
 
 prop_readSerialize b = tiTextBuilderSimple 0 (makeTiText 16 b) == b
   where types = (b::ByteString)
