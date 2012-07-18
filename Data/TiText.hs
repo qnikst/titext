@@ -56,7 +56,7 @@ tiTextParser = skipWhile (/= '@') >> many1 tiBlockParser
 
 -- | create TiText from a data
 makeTiText :: Int -> ByteString -> TiText
-makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length b,(s,d))) 0 $ splitBy i b
+makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length d,(s,d))) 0 $ splitBy i b
 
 -- | Serialize TI_TEXT internal representation to Text
 tiTextSerialization :: TiText -> Text
