@@ -18,7 +18,7 @@ module Data.TiText
   , tiTextBuilderSimple
   , makeTiText
     -- * Serializer
-  , tiTextSerialization
+  , tiTextSerialize
   ) where
 
 import           Control.Applicative
@@ -33,6 +33,7 @@ import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Text.Lazy.Builder.Int as TB
 import           Data.Word
 import           Data.TiText.Types
+-- import           Debug.Trace
 
 -- | read byte
 byte :: Parser Word8
@@ -59,8 +60,8 @@ makeTiText :: Int -> ByteString -> TiText
 makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length d,(s,d))) 0 $ splitBy i b
 
 -- | Serialize TI_TEXT internal representation to Text
-tiTextSerialization :: TiText -> Text
-tiTextSerialization = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
+tiTextSerialize :: TiText -> Text
+tiTextSerialize = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
   where
     toBuilder (a,d) = al `mappend` (TB.hexadecimal a `mappend` (el `mappend` dataToText d))
     strToText       = S.foldr toB el
@@ -72,7 +73,7 @@ tiTextSerialization = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
 
 
 tiTextBuilderSimple :: Word8 -> TiText -> ByteString
-tiTextBuilderSimple b = B.toByteString . foldr (flip B.append . B.fromByteString) B.empty . fix 0
+tiTextBuilderSimple b = B.toByteString . foldr (B.append . B.fromByteString) B.empty . fix 0
   where 
     fix :: Int -> [TiBlock] -> [ByteString]
     fix _ [] = []

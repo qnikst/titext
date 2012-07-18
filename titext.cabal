@@ -22,27 +22,33 @@ Maintainer:          alexander.vershilov@gmail.com
 -- Copyright:           
 Category:            Data
 Build-type:          Simple
-Cabal-version:       >=1.2
+Cabal-version:       >=1.8
 
 
 Library
-  -- Modules exported by the library.
   Exposed-modules:
      Data.TiText
-  
-  -- Packages needed in order to build this package.
   Build-depends:       base
                        , bytestring == 0.9.*
                        , cereal == 0.3.*
-                       , system-fileio == 0.3.*
-                       , system-filepath == 0.4.*
                        , text == 0.11.*
                        , attoparsec == 0.10.2.*
   Ghc-Options:         -Wall
   
-  -- Modules not exported by this package.
-  -- Other-modules:       
-  
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
-  
+test-suite test
+  type:               exitcode-stdio-1.0
+  main-is:            Test.hs
+  hs-source-dirs:     test/
+  ghc-options:        -rtsopts=all -threaded
+  build-depends:      base
+                      , bytestring
+                      , attoparsec
+                      , test-framework
+                      , test-framework-hunit
+                      , test-framework-quickcheck2
+                      , QuickCheck
+                      , titext
+                      , HUnit
+                      , text
+
+
