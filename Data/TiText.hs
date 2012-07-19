@@ -56,11 +56,15 @@ tiTextParser :: Parser TiText
 tiTextParser = skipWhile (/= '@') >> many1 tiBlockParser
 
 -- | create TiText from a data
-makeTiText :: Int -> ByteString -> TiText
+makeTiText :: Int                           -- ^ size of block
+           -> ByteString                    -- ^ data to parse
+           -> TiText                        -- ^ result
 makeTiText i b = snd $ L.mapAccumL (\s d -> (s+S.length d,(s,d))) 0 $ splitBy i b
 
 -- | Serialize TI_TEXT internal representation to Text
-tiTextSerialize :: TiText -> Text
+-- this function uses Lazy Text
+tiTextSerialize :: TiText                   -- ^ TI_TEXT data
+                -> Text                     -- ^ Resulting text
 tiTextSerialize = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
   where
     toBuilder (a,d) = al `mappend` (TB.hexadecimal a `mappend` (el `mappend` dataToText d))
@@ -72,7 +76,12 @@ tiTextSerialize = TB.toLazyText . foldr (mappend) mempty .  map toBuilder
     sl = TB.singleton ' '
 
 
-tiTextBuilderSimple :: Word8 -> TiText -> ByteString
+-- | Build binary data from TiText representation
+-- This function assumes that TiText blocks *has no overlaps* and 
+-- fill all gaps with specified byte
+tiTextBuilderSimple :: Word8                -- ^ byte to fill gaps
+                    -> TiText               -- ^ data to serialize
+                    -> ByteString
 tiTextBuilderSimple b = B.toByteString . foldr (B.append . B.fromByteString) B.empty . fix 0
   where 
     fix :: Int -> [TiBlock] -> [ByteString]
@@ -80,6 +89,9 @@ tiTextBuilderSimple b = B.toByteString . foldr (B.append . B.fromByteString) B.e
     fix a x@((a',d):xs) | a < a'    = let d' = S.replicate (a'-a) b in d':fix a' x
                         | a > a'    = let d' = S.drop (a'-a) d in d':fix (a+S.length d') xs
                         | otherwise = d:fix (a'+S.length d) xs
+
+-- Helpers
+
 
 foldrMany :: (a -> b -> b) -> b -> (Parser a) -> Parser b
 foldrMany f x p = foldr f x <$> (many p)
